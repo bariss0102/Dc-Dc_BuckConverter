@@ -117,8 +117,9 @@ Variable_Q21_EMAVG var_DC_Avg_Q21_EMAVG;
 Variable_Q22_PI_Controller var1_Q22_PI_Controller_Vltg_Contrl;
 
 //      -> Interrupt counter used for interrupt frequency control GPIO31
-unsigned int interrupt_counter_test, TimerFlag=0;
+unsigned int interrupt_counter_test, TimerFlag=1;
 const unsigned long int Delay = 10000000; //10 seconds
+
 
 /*
 ****************                                       ****************
@@ -548,8 +549,8 @@ void Init_Zero_Condition(void) {
     var_DC_Avg_Q21_EMAVG.Gain_a = _IQ21(0.00031406);
 
     Control_Init_PI_Controller(&var1_Q22_PI_Controller_Vltg_Contrl);
-    var1_Q22_PI_Controller_Vltg_Contrl.Ki = _IQ22(0.1);
-    var1_Q22_PI_Controller_Vltg_Contrl.Kp = _IQ22(0.8);
+    var1_Q22_PI_Controller_Vltg_Contrl.Ki = _IQ22(0.0);
+    var1_Q22_PI_Controller_Vltg_Contrl.Kp = _IQ22(0.1);
     var1_Q22_PI_Controller_Vltg_Contrl.Ki_Side_Constant = _IQ22mpy(var1_Q22_PI_Controller_Vltg_Contrl.Ki, _IQ22(0.00001));
     var1_Q22_PI_Controller_Vltg_Contrl.Output_Max = _IQ22(200.0);
     var1_Q22_PI_Controller_Vltg_Contrl.Output_Min = _IQ22(-200.0);
@@ -624,8 +625,9 @@ interrupt void epwm4_base_isr(void) {
 __interrupt void cpu_timer0_isr(void)
 {
     TimerFlag = 1;  //Turn on the flag to start PI operations
-    // No acknowledge, interrupt fires only once.
-    //Do not use any other interrupts of group 1.
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;
+
+    //No checks here. Any "if" statement would double the time spent here.
 }
 
 
