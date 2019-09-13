@@ -210,8 +210,9 @@ void Gpio_select(void) {
     GpioCtrlRegs.GPADIR.all = 0;
     GpioCtrlRegs.GPADIR.bit.GPIO31 = 1;     //  1 -> GPIO31 as output, LED
 
-    GpioCtrlRegs.GPBDIR.all = 0;            //  -> GPIO63-32 as inputs
+    GpioCtrlRegs.GPBDIR.all = 0;            //  -> GPIO63-33 as inputs
     GpioCtrlRegs.GPBDIR.bit.GPIO34 = 1;     //  1 -> GPIO34 as output, LED
+    GpioCtrlRegs.GPBDIR.bit.GPIO32 = 1;     //  1 -> GPIO32 as output, pwm running flag.
 
     GpioCtrlRegs.GPCDIR.all = 0;            //  -> GPIO87-64 as inputs
     EDIS;
@@ -548,7 +549,7 @@ void Init_Zero_Condition(void) {
 
     Control_Init_PI_Controller(&var1_Q22_PI_Controller_Vltg_Contrl);
     var1_Q22_PI_Controller_Vltg_Contrl.Ki = _IQ22(0.1);
-    var1_Q22_PI_Controller_Vltg_Contrl.Kp = _IQ22(0.1);
+    var1_Q22_PI_Controller_Vltg_Contrl.Kp = _IQ22(0.8);
     var1_Q22_PI_Controller_Vltg_Contrl.Ki_Side_Constant = _IQ22mpy(var1_Q22_PI_Controller_Vltg_Contrl.Ki, _IQ22(0.00001));
     var1_Q22_PI_Controller_Vltg_Contrl.Output_Max = _IQ22(200.0);
     var1_Q22_PI_Controller_Vltg_Contrl.Output_Min = _IQ22(-200.0);
@@ -581,6 +582,8 @@ interrupt void epwm4_base_isr(void) {
  *      -> ADC registers are 16 bit and the value which consist is 12 bit
  *      -> with (long) expression we transform 16 bit to 32 bit(actually it can not be necessary)
  */
+    GpioDataRegs.GPBSET.bit.GPIO32 = 1;
+
     VDC_Voltage_Calculation_MACRO_Vltg_Clc((long) ((AdcMirror.ADCRESULT6 >> 1) + (AdcMirror.ADCRESULT14 >> 1)));
     ANLG_PH_DC_Q19 = Normalize_Voltage_Q19;
 
@@ -595,7 +598,7 @@ interrupt void epwm4_base_isr(void) {
     }
     Control_Ref_Q21 = (var1_Q22_PI_Controller_Vltg_Contrl.Output) >> 1;
 
-//    DutyA_Q21_Swtch_Contrl = _IQ21mpy(Control_Ref_Q21 + Vp_Ref_Q21, One_Divided_Vpp_Ref_Q21);
+    DutyA_Q21_Swtch_Contrl = _IQ21mpy(Control_Ref_Q21 + Vp_Ref_Q21, One_Divided_Vpp_Ref_Q21);
 
     CMPA_Overflow_1_Swtch_Contrl = _IQsat(EPwm1Regs.TBPRD - _IQ21mpy(DutyA_Q21_Swtch_Contrl,EPwm1Regs.TBPRD), 745,5);
     EPwm1Regs.CMPA.half.CMPA = CMPA_Overflow_1_Swtch_Contrl;
@@ -611,6 +614,7 @@ interrupt void epwm4_base_isr(void) {
     interrupt_counter_test++;
 
     EPwm4Regs.ETCLR.bit.INT = 1;        //      -> Clear INT flag for this timer
+    GpioDataRegs.GPBCLEAR.bit.GPIO32 = 1;
 
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;     //      -> Acknowledge this interrupt to receive more interrupts from group 3
 
