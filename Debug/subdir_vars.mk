@@ -17,6 +17,7 @@ ASM_SRCS += \
 C_SRCS += \
 ../DC_DC_Buck_Converter_main.c \
 ../DSP2833x_Adc.c \
+C:/ti/c2000/C2000Ware_2_00_00_02/device_support/f2833x/common/source/DSP2833x_CpuTimers.c \
 ../DSP2833x_DefaultIsr.c \
 ../DSP2833x_GlobalVariableDefs.c \
 ../DSP2833x_PieCtrl.c \
@@ -28,6 +29,7 @@ C_SRCS += \
 C_DEPS += \
 ./DC_DC_Buck_Converter_main.d \
 ./DSP2833x_Adc.d \
+./DSP2833x_CpuTimers.d \
 ./DSP2833x_DefaultIsr.d \
 ./DSP2833x_GlobalVariableDefs.d \
 ./DSP2833x_PieCtrl.d \
@@ -41,6 +43,7 @@ OBJS += \
 ./DSP2833x_ADC_cal.obj \
 ./DSP2833x_Adc.obj \
 ./DSP2833x_CodeStartBranch.obj \
+./DSP2833x_CpuTimers.obj \
 ./DSP2833x_DefaultIsr.obj \
 ./DSP2833x_GlobalVariableDefs.obj \
 ./DSP2833x_PieCtrl.obj \
@@ -60,6 +63,7 @@ OBJS__QUOTED += \
 "DSP2833x_ADC_cal.obj" \
 "DSP2833x_Adc.obj" \
 "DSP2833x_CodeStartBranch.obj" \
+"DSP2833x_CpuTimers.obj" \
 "DSP2833x_DefaultIsr.obj" \
 "DSP2833x_GlobalVariableDefs.obj" \
 "DSP2833x_PieCtrl.obj" \
@@ -72,6 +76,7 @@ OBJS__QUOTED += \
 C_DEPS__QUOTED += \
 "DC_DC_Buck_Converter_main.d" \
 "DSP2833x_Adc.d" \
+"DSP2833x_CpuTimers.d" \
 "DSP2833x_DefaultIsr.d" \
 "DSP2833x_GlobalVariableDefs.d" \
 "DSP2833x_PieCtrl.d" \
@@ -88,6 +93,7 @@ ASM_DEPS__QUOTED += \
 C_SRCS__QUOTED += \
 "../DC_DC_Buck_Converter_main.c" \
 "../DSP2833x_Adc.c" \
+"C:/ti/c2000/C2000Ware_2_00_00_02/device_support/f2833x/common/source/DSP2833x_CpuTimers.c" \
 "../DSP2833x_DefaultIsr.c" \
 "../DSP2833x_GlobalVariableDefs.c" \
 "../DSP2833x_PieCtrl.c" \
