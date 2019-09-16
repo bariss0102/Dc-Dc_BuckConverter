@@ -45,7 +45,7 @@
  *      -> We compare this with actual dc value, dc value is Q19 format
  *      -> Used in voltage controller side
  */
-#define DC_ref_Q19_Vltg_Contrl _IQ19(50.0)
+#define DC_ref_Q19_Vltg_Contrl _IQ19(200.0)
 
 //      -> This must be max. output value of PI controller
 #define Vp_Ref_Q21 _IQ21(200.0)
@@ -77,7 +77,7 @@ void Init_Zero_Condition(void);     //  -> zero condition assignment
 interrupt void epwm4_base_isr(void);    //  -> Base interrupt trigger from PWM4
                                         //  -> All closed loop calculation realize in here
 
-interrupt void cpu_timer0_isr(void);  //Boot Sequence
+
 /*****
  *      -> Global Variable Declaration
  *****/
@@ -117,9 +117,7 @@ Variable_Q21_EMAVG var_DC_Avg_Q21_EMAVG;
 Variable_Q22_PI_Controller var1_Q22_PI_Controller_Vltg_Contrl;
 
 //      -> Interrupt counter used for interrupt frequency control GPIO31
-unsigned int interrupt_counter_test, TimerFlag=1;
-const unsigned long int Delay = 10000000; //10 seconds
-
+unsigned int interrupt_counter_test;
 
 /*
 ****************                                       ****************
@@ -147,7 +145,6 @@ void main(void) {
     //    AdcRegs.ADCTRL1.bit.RESET = 1;      //      -> to reset whole adc block, use delay two adc clock
     //    asm("RPT #22 || NOP");      //      -> bad term, main.obj warning(not always)
 
-
     InitAdc();      //  -> Initialization of adc block
 
     Gpio_select();  //  -> Gpio settings for input and output, pins mode selection
@@ -165,21 +162,13 @@ void main(void) {
 
     EALLOW;
     PieVectTable.EPWM4_INT = &epwm4_base_isr;       //      -> Connection of ePWM4 interrupt
-    PieVectTable.TINT0 = &cpu_timer0_isr;
     EDIS;
-
-    InitCpuTimers();    //Start timers
-    ConfigCpuTimer(&CpuTimer0, 150, Delay);
-    CpuTimer0Regs.TCR.all = 0x4000; //write-only instruction to set TSS bit = 0
-
 
     IER |= M_INT3;      //  -> 0000 0000 0000 0100 -> 0x0004
                         //  -> Enable CPU INT3 which is connected to EPWM1-6 INT
                         //  -> M_INT3 = 4
-    IER |= M_INT1;      //For timer0
 
-    PieCtrlRegs.PIEIER3.bit.INTx4 = 1;  //Pwm
-    PieCtrlRegs.PIEIER1.bit.INTx7 = 1;  //Timer
+    PieCtrlRegs.PIEIER3.bit.INTx4 = 1;
 
     EINT;       //  -> Enable maskable interrupt
     ERTM;       //  -> Enable debug event
@@ -211,9 +200,8 @@ void Gpio_select(void) {
     GpioCtrlRegs.GPADIR.all = 0;
     GpioCtrlRegs.GPADIR.bit.GPIO31 = 1;     //  1 -> GPIO31 as output, LED
 
-    GpioCtrlRegs.GPBDIR.all = 0;            //  -> GPIO63-33 as inputs
+    GpioCtrlRegs.GPBDIR.all = 0;            //  -> GPIO63-32 as inputs
     GpioCtrlRegs.GPBDIR.bit.GPIO34 = 1;     //  1 -> GPIO34 as output, LED
-    GpioCtrlRegs.GPBDIR.bit.GPIO32 = 1;     //  1 -> GPIO32 as output, pwm running flag.
 
     GpioCtrlRegs.GPCDIR.all = 0;            //  -> GPIO87-64 as inputs
     EDIS;
@@ -532,8 +520,8 @@ void Init_Zero_Condition(void) {
 
 /*
  *      -> Very first initial condition is in this format:
- *      Phase A up switch open, down switch close
- *      Phase B up switch close, down switch open
+ *      Phase A up switch open, dowm switch close
+ *      Phase B up switch close, dowm switch open
  *      Phase C up switch close, down switch open
  */
     DutyA_Q21_Swtch_Contrl = _IQ21(0.5);
@@ -549,7 +537,7 @@ void Init_Zero_Condition(void) {
     var_DC_Avg_Q21_EMAVG.Gain_a = _IQ21(0.00031406);
 
     Control_Init_PI_Controller(&var1_Q22_PI_Controller_Vltg_Contrl);
-    var1_Q22_PI_Controller_Vltg_Contrl.Ki = _IQ22(0.0);
+    var1_Q22_PI_Controller_Vltg_Contrl.Ki = _IQ22(0.1);
     var1_Q22_PI_Controller_Vltg_Contrl.Kp = _IQ22(0.1);
     var1_Q22_PI_Controller_Vltg_Contrl.Ki_Side_Constant = _IQ22mpy(var1_Q22_PI_Controller_Vltg_Contrl.Ki, _IQ22(0.00001));
     var1_Q22_PI_Controller_Vltg_Contrl.Output_Max = _IQ22(200.0);
@@ -583,8 +571,6 @@ interrupt void epwm4_base_isr(void) {
  *      -> ADC registers are 16 bit and the value which consist is 12 bit
  *      -> with (long) expression we transform 16 bit to 32 bit(actually it can not be necessary)
  */
-    GpioDataRegs.GPBSET.bit.GPIO32 = 1;
-
     VDC_Voltage_Calculation_MACRO_Vltg_Clc((long) ((AdcMirror.ADCRESULT6 >> 1) + (AdcMirror.ADCRESULT14 >> 1)));
     ANLG_PH_DC_Q19 = Normalize_Voltage_Q19;
 
@@ -592,43 +578,31 @@ interrupt void epwm4_base_isr(void) {
     Filter_MACRO_EMAVG(var_DC_Avg_Q21_EMAVG);
     ANLG_PH_DC_Avg_Q19 = var_DC_Avg_Q21_EMAVG.Out >> 2;
 
-    if (TimerFlag)
-    {
     var1_Q22_PI_Controller_Vltg_Contrl.Input = (DC_ref_Q19_Vltg_Contrl - ANLG_PH_DC_Avg_Q19) << 3;
     Control_MACRO_PI_Controller(var1_Q22_PI_Controller_Vltg_Contrl);
-    }
+
     Control_Ref_Q21 = (var1_Q22_PI_Controller_Vltg_Contrl.Output) >> 1;
 
     DutyA_Q21_Swtch_Contrl = _IQ21mpy(Control_Ref_Q21 + Vp_Ref_Q21, One_Divided_Vpp_Ref_Q21);
 
-    CMPA_Overflow_1_Swtch_Contrl = _IQsat(EPwm1Regs.TBPRD - _IQ21mpy(DutyA_Q21_Swtch_Contrl,EPwm1Regs.TBPRD), 745,5);
+    CMPA_Overflow_1_Swtch_Contrl = _IQsat(_IQ21mpy(DutyA_Q21_Swtch_Contrl,EPwm1Regs.TBPRD), 745,5);
     EPwm1Regs.CMPA.half.CMPA = CMPA_Overflow_1_Swtch_Contrl;
 
-    if(TimerFlag)
-    {
-        if(interrupt_counter_test %20000 == 0)
-        {
-            GpioDataRegs.GPATOGGLE.bit.GPIO31 = 1;
-            GpioDataRegs.GPBTOGGLE.bit.GPIO34 = 1;
-        }
+    if(interrupt_counter_test %20000 == 0) {
+        GpioDataRegs.GPATOGGLE.bit.GPIO31 = 1;
+        GpioDataRegs.GPBTOGGLE.bit.GPIO34 = 1;
     }
+
     interrupt_counter_test++;
 
     EPwm4Regs.ETCLR.bit.INT = 1;        //      -> Clear INT flag for this timer
-    GpioDataRegs.GPBCLEAR.bit.GPIO32 = 1;
 
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;     //      -> Acknowledge this interrupt to receive more interrupts from group 3
 
 }
 
 
-__interrupt void cpu_timer0_isr(void)
-{
-    TimerFlag = 1;  //Turn on the flag to start PI operations
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;
 
-    //No checks here. Any "if" statement would double the time spent here.
-}
 
 
 
